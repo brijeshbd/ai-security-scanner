@@ -1,0 +1,2 @@
+# dependencies will go here
+ollama
