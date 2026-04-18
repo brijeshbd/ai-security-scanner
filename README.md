@@ -198,6 +198,12 @@ Your code never goes anywhere unexpected:
 - When using a cloud API (Claude/OpenAI/Groq), only cleaned code with secrets already removed is sent
 
 ---
+Screen Shots: 
+<img width="1470" height="837" alt="image" src="https://github.com/user-attachments/assets/5b3827cb-6b46-45b4-a16f-2934499a2a6c" />
+<img width="1470" height="836" alt="image" src="https://github.com/user-attachments/assets/fd1ac141-31c4-4911-9bc2-340558ceb987" />
+
+
+---
 
 ## License
 
