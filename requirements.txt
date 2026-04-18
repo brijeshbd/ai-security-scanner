@@ -1,2 +1,10 @@
-# dependencies will go here
-ollama
+# AI Security Scanner — Python dependencies
+# ==========================================
+# Core (always needed)
+ollama          # local AI via Ollama — free, no API key
+ 
+# Optional providers — install only the one you want to use
+# anthropic     # Claude API  → pip install anthropic
+# openai        # OpenAI API  → pip install openai
+# groq          # Groq API    → pip install groq
+ 

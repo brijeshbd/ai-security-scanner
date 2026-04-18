@@ -1,16 +1,16 @@
-import ollama
+"""
+scanner/analyzer.py — AI analysis engine
+=========================================
+Sends cleaned code to whichever AI provider is configured in config.py.
+Adding a new provider = adding one function + one entry in _get_response().
+"""
+
 import json
 import os
+import config
 
-# This is the most important part of the whole project.
-# The quality of security findings depends almost entirely
-# on how well we instruct the model here.
-#
-# We tell it:
-#  1. exactly what role to play
-#  2. what categories to look for
-#  3. precisely what format to return
-#  4. to never make things up if unsure
+# ── System prompt ─────────────────────────────────────────────────────────────
+# Shared across all providers — the AI always gets the same instructions.
 
 SYSTEM_PROMPT = """You are an expert security engineer performing a thorough code security audit.
 Your job is to find real, exploitable security vulnerabilities in the code you are given.
@@ -26,101 +26,173 @@ You must check for these vulnerability categories:
 - Insufficient logging: missing audit trails for sensitive actions
 - Business logic flaws: missing input validation, race conditions
 
-For each vulnerability you find, you MUST respond ONLY with a valid JSON array.
-Each item in the array must have exactly these fields:
+For each vulnerability you find, respond ONLY with a valid JSON array.
+Each item must have exactly these fields:
 {
   "severity": "CRITICAL" | "HIGH" | "MEDIUM" | "LOW",
-  "type": "short vulnerability name, e.g. SQL Injection",
-  "line": line number as integer or null if unknown,
-  "description": "one sentence explaining what the vulnerability is",
-  "risk": "one sentence explaining what an attacker could do if they exploited this",
-  "fix": "concrete code fix or recommendation, be specific"
+  "type": "short name e.g. SQL Injection",
+  "line": line number as integer or null,
+  "description": "one sentence — what the vulnerability is",
+  "risk": "one sentence — what an attacker could do",
+  "fix": "concrete, specific fix or code recommendation"
 }
 
 Rules:
-- Return ONLY the JSON array. No intro text, no explanation, no markdown fences.
-- If you find no vulnerabilities, return an empty array: []
-- Do not invent vulnerabilities. Only report what you can clearly see in the code.
-- Order findings by severity: CRITICAL first, then HIGH, MEDIUM, LOW.
+- Return ONLY the JSON array. No intro, no explanation, no markdown fences.
+- If you find no vulnerabilities return: []
+- Do not invent vulnerabilities. Only report what is clearly visible.
+- Order by severity: CRITICAL first, then HIGH, MEDIUM, LOW.
 """
 
 
-def build_user_prompt(filepath, content):
-    """
-    Wraps the code in a clear prompt so Mistral knows
-    exactly what file it's looking at and what to do.
-    """
-    filename = os.path.basename(filepath)
+def _build_user_prompt(filepath, content):
+    filename  = os.path.basename(filepath)
     extension = os.path.splitext(filename)[1]
-
-    return f"""Analyze this file for security vulnerabilities.
-
-File: {filename}
-Language: {extension}
-
-Code:
-{content}
-
-Return your findings as a JSON array only."""
+    return (f"Analyze this file for security vulnerabilities.\n\n"
+            f"File: {filename}\nLanguage: {extension}\n\nCode:\n{content}\n\n"
+            f"Return findings as a JSON array only.")
 
 
-def analyze_file(filepath, cleaned_content, model="mistral"):
+# ── Provider implementations ──────────────────────────────────────────────────
+
+def _call_ollama(prompt):
+    """Calls a locally running Ollama model. No API key required."""
+    import ollama
+    response = ollama.chat(
+        model=config.OLLAMA_MODEL,
+        messages=[
+            {"role": "system",  "content": SYSTEM_PROMPT},
+            {"role": "user",    "content": prompt},
+        ],
+        options={"temperature": 0, "num_predict": 2000},
+    )
+    return response["message"]["content"].strip()
+
+
+def _call_claude(prompt):
+    """Calls Anthropic Claude API. Requires ANTHROPIC_API_KEY in config."""
+    try:
+        import anthropic
+    except ImportError:
+        raise ImportError("Run: pip install anthropic")
+
+    if not config.ANTHROPIC_API_KEY:
+        raise ValueError("ANTHROPIC_API_KEY is not set in config.py or environment.")
+
+    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    message = client.messages.create(
+        model=config.CLAUDE_MODEL,
+        max_tokens=2000,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return message.content[0].text.strip()
+
+
+def _call_openai(prompt):
+    """Calls OpenAI API. Requires OPENAI_API_KEY in config."""
+    try:
+        from openai import OpenAI
+    except ImportError:
+        raise ImportError("Run: pip install openai")
+
+    if not config.OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY is not set in config.py or environment.")
+
+    client = OpenAI(api_key=config.OPENAI_API_KEY)
+    response = client.chat.completions.create(
+        model=config.OPENAI_MODEL,
+        temperature=0,
+        max_tokens=2000,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": prompt},
+        ],
+    )
+    return response.choices[0].message.content.strip()
+
+
+def _call_groq(prompt):
+    """Calls Groq API (free tier available). Requires GROQ_API_KEY in config."""
+    try:
+        from groq import Groq
+    except ImportError:
+        raise ImportError("Run: pip install groq")
+
+    if not config.GROQ_API_KEY:
+        raise ValueError("GROQ_API_KEY is not set in config.py or environment.")
+
+    client = Groq(api_key=config.GROQ_API_KEY)
+    response = client.chat.completions.create(
+        model=config.GROQ_MODEL,
+        temperature=0,
+        max_tokens=2000,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": prompt},
+        ],
+    )
+    return response.choices[0].message.content.strip()
+
+
+# ── Provider router ───────────────────────────────────────────────────────────
+
+PROVIDERS = {
+    "ollama": _call_ollama,
+    "claude": _call_claude,
+    "openai": _call_openai,
+    "groq":   _call_groq,
+}
+
+
+def _get_response(prompt):
+    """Routes to the correct provider based on config.PROVIDER."""
+    provider = config.PROVIDER.lower()
+    if provider not in PROVIDERS:
+        raise ValueError(
+            f"Unknown provider '{provider}'. "
+            f"Choose from: {', '.join(PROVIDERS.keys())}"
+        )
+    return PROVIDERS[provider](prompt)
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def analyze_file(filepath, cleaned_content):
     """
-    Sends one file's cleaned content to Mistral for analysis.
-    Returns a list of finding dicts, or empty list if none found.
+    Analyzes one file. Returns a list of finding dicts.
+    cleaned_content: file text already processed by stripper.py
     """
-    # Skip files that are basically empty — nothing to analyze
     if not cleaned_content or len(cleaned_content.strip()) < 10:
         return []
 
-    # Very large files would exceed Mistral's context window.
-    # We truncate to ~8000 chars (~2000 tokens) to stay safe.
-    # In Phase 5 we'll handle large files properly with chunking.
-    MAX_CHARS = 8000
-    if len(cleaned_content) > MAX_CHARS:
-        cleaned_content = cleaned_content[:MAX_CHARS]
-        cleaned_content += "\n\n# [FILE TRUNCATED FOR ANALYSIS]"
+    # Truncate very large files to stay within model context limits
+    content = cleaned_content
+    if len(content) > config.MAX_FILE_CHARS:
+        content = content[:config.MAX_FILE_CHARS] + "\n\n# [FILE TRUNCATED]"
 
     print(f"  Analyzing: {os.path.basename(filepath)}...", end=" ", flush=True)
 
     try:
-        response = ollama.chat(
-            model=model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user",   "content": build_user_prompt(filepath, cleaned_content)},
-            ],
-            # These settings make output more focused and consistent.
-            # temperature=0 means deterministic — same code = same findings every time.
-            options={
-                "temperature": 0,
-                "num_predict": 2000,
-            }
-        )
+        raw = _get_response(_build_user_prompt(filepath, content))
 
-        raw = response["message"]["content"].strip()
-
-        # Sometimes models add markdown fences even when told not to.
-        # Strip them defensively.
+        # Strip markdown fences if model added them despite instructions
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
         raw = raw.strip()
 
-        # If response is empty or model said nothing to report
         if not raw or raw == "[]":
             print("clean")
             return []
 
         findings = json.loads(raw)
 
-        # Validate it's actually a list
         if not isinstance(findings, list):
             print("unexpected format")
             return []
 
-        # Attach the filepath to each finding for the report later
         for f in findings:
             f["file"] = filepath
 
@@ -128,34 +200,30 @@ def analyze_file(filepath, cleaned_content, model="mistral"):
         return findings
 
     except json.JSONDecodeError:
-        # Model didn't return valid JSON — happens occasionally
-        # We'll handle this more gracefully in a future phase
-        print("parse error (model returned non-JSON)")
+        print("parse error — model returned non-JSON")
         return []
-
     except Exception as e:
         print(f"error — {e}")
         return []
 
 
-def analyze_codebase(processed_files, model="mistral"):
+def analyze_codebase(processed_files):
     """
-    Runs analysis on all files returned by the stripper.
-    
-    processed_files: dict from stripper.process_files()
-      { filepath: { 'content': ..., 'findings': [...] } }
-    
-    Returns a flat list of all security findings across all files.
+    Runs analysis across all files from the stripper.
+    processed_files: dict { filepath: { 'content': str, 'findings': list } }
+    Returns flat list of all findings.
     """
     all_findings = []
     files = list(processed_files.items())
     total = len(files)
 
-    print(f"\nAnalyzing {total} file(s) with {model}...\n")
+    print(f"\nAnalyzing {total} file(s) with "
+          f"{config.PROVIDER} / "
+          f"{getattr(config, config.PROVIDER.upper() + '_MODEL', '')}...\n")
 
     for i, (filepath, data) in enumerate(files, 1):
         print(f"  [{i}/{total}]", end=" ")
-        findings = analyze_file(filepath, data["content"], model)
+        findings = analyze_file(filepath, data["content"])
         all_findings.extend(findings)
 
     print(f"\nScan complete. Total issues found: {len(all_findings)}")
