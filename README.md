@@ -12,7 +12,7 @@ Point it at any project folder and it will:
 2. Automatically redact any secrets, API keys, or passwords it finds before the AI sees anything
 3. Send the cleaned code to a local AI model (Mistral, running on your machine)
 4. Get back a list of real security issues — SQL injection, hardcoded credentials, insecure deserialization, command injection, and more
-5. Generate a beautiful HTML report with severity levels, risk explanations, and specific fix suggestions
+5. Generate a professional PDF report with color-coded severity levels, risk explanations, and specific fix suggestions — openable on any device
 
 Everything runs locally. No cloud, no accounts, no cost.
 
@@ -35,10 +35,10 @@ Step 3/4  Running AI analysis...
 
 Step 4/4  Generating report...
 
-Report saved: reports/scan_2026-04-18_14-32.html
+Report saved: reports/scan_2026-04-18_14-32.pdf
 ```
 
-Open the HTML report in any browser to see your findings.
+Open the PDF report in any PDF viewer or browser to see your findings.
 
 ---
 
@@ -108,13 +108,13 @@ Then open the report:
 
 ```bash
 # Mac
-open reports/scan_*.html
+open reports/scan_*.pdf
 
 # Windows
-start reports/scan_*.html
+start reports/scan_*.pdf
 
 # Linux
-xdg-open reports/scan_*.html
+xdg-open reports/scan_*.pdf
 ```
 
 ---
@@ -126,7 +126,7 @@ xdg-open reports/scan_*.html
 python main.py ./my-project
 
 # Scan with a custom report name
-python main.py ./my-project --output my-report.html
+python main.py ./my-project --output my-report.pdf
 
 # Scan the current folder
 python main.py .
@@ -177,7 +177,7 @@ ai-security-scanner/
 │   ├── walker.py      # finds all code files in your project
 │   ├── stripper.py    # redacts secrets before AI sees anything
 │   ├── analyzer.py    # sends code to AI, parses security findings
-│   └── reporter.py    # generates the HTML report
+│   └── reporter.py    # generates the PDF report
 ├── tests/             # test files for each module
 ├── docs/              # detailed documentation
 ├── reports/           # your scan reports land here (git-ignored)

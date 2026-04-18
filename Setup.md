@@ -73,7 +73,7 @@ Your terminal prompt should now show `(venv)` at the start. This means you're in
 pip install -r requirements.txt
 ```
 
-This installs a small library that lets Python talk to Ollama. Takes about 30 seconds.
+This installs two libraries: `ollama` (lets Python talk to the local AI) and `reportlab` (builds the PDF report). Takes about 60 seconds.
 
 ---
 
@@ -134,25 +134,27 @@ The scan takes 1–5 minutes depending on how many files your project has.
 When the scan finishes, it will print something like:
 
 ```
-Report saved: reports/scan_2026-04-18_14-32.html
+Report saved: reports/scan_2026-04-18_14-32.pdf
 ```
 
-Open that file in your browser:
+Open that PDF file:
 
 **Mac:**
 ```bash
-open reports/scan_*.html
+open reports/scan_*.pdf
 ```
 
 **Windows:**
 ```bash
-start reports/scan_*.html
+start reports/scan_*.pdf
 ```
 
 **Linux:**
 ```bash
-xdg-open reports/scan_*.html
+xdg-open reports/scan_*.pdf
 ```
+
+The PDF opens in your default PDF viewer (Preview on Mac, Edge or Adobe on Windows). You can also open it directly in Chrome or Firefox by dragging the file into the browser.
 
 ---
 
@@ -167,11 +169,17 @@ You opened a new terminal window. Run the activate command again (Step 3).
 **"ollama: command not found"**
 Ollama isn't installed or wasn't added to your PATH. Re-install from https://ollama.com/download and restart your terminal.
 
+**"No module named 'ollama'" or "No module named 'reportlab'"**
+Your virtual environment is not active. Run `source venv/bin/activate` (Mac/Linux) or `venv\Scripts\activate` (Windows) first, then try again.
+
 **Scan is very slow**
 This is normal for the first scan — your computer is warming up the AI model. Subsequent scans on the same machine are faster.
 
 **"No scannable files found"**
 The path you provided might be wrong, or the project uses a language not yet in our list. Check the path and try again.
+
+**PDF doesn't open**
+Try dragging the `.pdf` file from the `reports/` folder directly into your browser (Chrome or Firefox work well).
 
 ---
 

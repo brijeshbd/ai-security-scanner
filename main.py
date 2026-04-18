@@ -19,6 +19,9 @@ from scanner.analyzer import analyze_codebase
 from scanner.reporter import generate_html_report
 import config
 
+if "venv" not in sys.prefix and ".venv" not in sys.prefix:
+    print("\n[WARNING] Virtual environment not active.")
+    print("  Run: source venv/bin/activate\n")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -72,7 +75,7 @@ def main():
     # Step 4 — Report
     print("\nStep 4/4  Generating report...")
     timestamp   = datetime.now().strftime("%Y-%m-%d_%H-%M")
-    report_name = f"scan_{timestamp}.html"
+    report_name = f"scan_{timestamp}.pdf"
     output_path = args.output or os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         config.REPORTS_DIR,

@@ -24,7 +24,7 @@ pip install -r requirements.txt
 | `scanner/walker.py` | Add file extensions or skip folders |
 | `scanner/stripper.py` | Add new secret patterns |
 | `scanner/analyzer.py` | Add a new AI provider function |
-| `scanner/reporter.py` | Change report layout or styling |
+| `scanner/reporter.py` | Change PDF report layout or styling |
 
 ---
 
@@ -50,6 +50,20 @@ pip install -r requirements.txt
    MYPROVIDER_MODEL   = "their-model-name"
    ```
 5. Document it in `docs/providers.md`
+
+---
+
+## Customising the PDF report
+
+The report is built with `reportlab`. Open `scanner/reporter.py` to change:
+
+- **Colors** — edit `SEVERITY_COLOR` and `SEVERITY_BG` dicts at the top
+- **Fonts** — change `fontName` in the `_styles()` function
+- **Page size** — swap `A4` for `letter` in `generate_report()`
+- **Header/footer** — edit `_make_page_template()`
+- **Finding card layout** — edit `_finding_card()`
+
+No other files need touching — the reporter is self-contained.
 
 ---
 
@@ -82,3 +96,4 @@ python tests/test_analyzer.py   # requires Ollama running locally
 - [ ] New features have a test in `tests/`
 - [ ] New providers are documented in `docs/providers.md`
 - [ ] No real API keys or secrets committed
+- [ ] If changing the PDF report, test with at least one CRITICAL and one LOW finding
